@@ -1,0 +1,24 @@
+config:
+  target: "http://refDomainDeveloperAccess-897927938.ap-southeast-1.elb.amazonaws.com:81"
+  phases:
+    - duration: 1
+      arrivalRate: 1
+  payload:
+    path: "./createCustomer.csv"
+    fields:
+      - "name"
+      - "email"
+  defaults:
+    headers:
+      authorization: Basic dXNlcjppa2lnYWk=
+      idempotence-key: ik2
+ 
+scenarios:
+  - name: "Create customer"
+    flow:
+      - post:
+          url: "/api/v3/customers"
+          json:
+            name: "{{ name }}"
+            email: "{{ email }}"
+            
