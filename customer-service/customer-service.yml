@@ -1,24 +1,94 @@
 config:
-  target: "http://refDomainDeveloperAccess-897927938.ap-southeast-1.elb.amazonaws.com:81"
+  target: "http:/"
+  plugins:
+    expect: {}
   phases:
     - duration: 1
       arrivalRate: 1
+  processor: "./refDomainFunction.js"
   payload:
     path: "./createCustomer.csv"
     fields:
       - "name"
       - "email"
+    skipHeader: true
+    order: sequence
   defaults:
     headers:
       authorization: Basic dXNlcjppa2lnYWk=
-      idempotence-key: ik2
- 
+
+# createCustomer -> capture id, verify tier -> create order -> verify tier
 scenarios:
   - name: "Create customer"
     flow:
       - post:
-          url: "/api/v3/customers"
+          url: "/refDomainDeveloperAccess-897927938.ap-southeast-1.elb.amazonaws.com:81/api/v3/customers"
+          headers:
+            idempotence-key: "{{ $randomString() }}"
           json:
             name: "{{ name }}"
             email: "{{ email }}"
+          expect:
+            - statusCode: 201
+            - contentType: application/json
+            - hasProperty: id
+          capture:
+            - json: "$.id"
+              as: customerId
+      - log: "customer created with customerId: {{ customerId }}"
+
+      # Get created customer and verify if tier is empty
+      - get:
+          url: "/refDomainDeveloperAccess-897927938.ap-southeast-1.elb.amazonaws.com:81/api/v3/customers/{{ customerId }}"
+          headers:
+            idempotence-key: "{{ $randomString() }}"
+          expect:
+            - statusCode: 200
+            - contentType: application/json
+            - hasProperty: tier
+            - equals:
+              - undefined #empty string
+              - "{{ tier }}"
+      - log: "get customer with customerId: {{ customerId }} and its tier is {{ tier }}"
+
+      # Create order with the created customer
+      - loop:
+          - think: 1
+          - post:
+              url: "/refDomainDeveloperAccess-897927938.ap-southeast-1.elb.amazonaws.com/api/v3/customer-orders"
+              headers:
+                idempotence-key: "{{ $randomString() }}"
+              json:
+                orderNumber: "orderNumber_{{ $randomString() }}_{{$randomNumber(1,1000)}}"
+                customerId: "{{ customerId }}"
+                grandTotal: "100"
+              expect:
+                - statusCode: 201
+                - contentType: application/json
+                - hasProperty: customerOrder.id
+              capture:
+                - json: "$.customerOrder.id"
+                  as: customerOrderId
+          - log: "customer order created with customerOrderId: {{ customerOrderId }}"
+        whileTrue: "isCustomerOrderInvalid"
+
+      # Verify the customer tier is now silver
+      - loop:
+          - think: 1
+          - get:
+              url: "/refDomainDeveloperAccess-897927938.ap-southeast-1.elb.amazonaws.com:81/api/v3/customers/{{ customerId }}"
+              headers:
+                idempotence-key: "{{ $randomString() }}"
+              capture:
+                - json: "$.tier"
+                  as: tier
+              expect:
+                - statusCode: 200
+                - contentType: application/json
+                - hasProperty: tier
+                - equals:
+                  - "SILVER"
+                  - "{{ tier }}"
+          - log: "customer with customerId: {{ customerId }} and its tier is now {{ tier }}"
+        whileTrue: "isCustomerTierEmpty"
             
