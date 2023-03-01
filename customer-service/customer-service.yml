@@ -16,6 +16,9 @@ config:
   defaults:
     headers:
       authorization: Basic dXNlcjppa2lnYWk=
+  variables:
+    verifySilverCustomerLoopCount: 5
+    createOrderLoopCount: 5
 
 # createCustomer -> capture id, verify tier -> create order -> verify tier
 scenarios:
