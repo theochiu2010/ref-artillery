@@ -1,9 +1,9 @@
 module.exports = {
-    isCustomerTierEmpty: isCustomerTierEmpty,
+    isCustomerTierNotEqualToSilver: isCustomerTierNotEqualToSilver,
     isCustomerOrderInvalid: isCustomerOrderInvalid
   }
   
-  function isCustomerTierEmpty(context, next) {
+  function isCustomerTierNotEqualToSilver(context, next) {
     const continueLooping = context.vars.tier !== 'SILVER';
     return next(continueLooping);
   }

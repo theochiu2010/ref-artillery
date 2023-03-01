@@ -90,5 +90,5 @@ scenarios:
                   - "SILVER"
                   - "{{ tier }}"
           - log: "customer with customerId: {{ customerId }} and its tier is now {{ tier }}"
-        whileTrue: "isCustomerTierEmpty"
+        whileTrue: "isCustomerTierNotEqualToSilver"
             
